@@ -1,90 +1,39 @@
+# Terraform AWS Infrastructure
 
-## Table of Contents
+## Overview
+This repository contains Terraform code to manage AWS resources using GitHub Actions for CI/CD.
 
-- [Prerequisites](#prerequisites)
-- [Installation](#installation)
-- [Usage](#usage)
+## Setup
+1. Create an IAM user with MFA and necessary permissions.
+2. Set up GitHub Secrets for AWS credentials:
+   - `AWS_ROLE_ARN`: The ARN of the IAM role.
+   - `AWS_REGION`: The AWS region where resources are deployed.
+3. Configure the workflow to trigger on push or pull request to the main branch.
 
-## Prerequisites
+## Running the Workflow
+The GitHub Actions workflow runs the following:
+- **Check**: Checks Terraform formatting.
+- **Plan**: Plans the deployment.
+- **Apply**: Applies the Terraform changes if on the main branch.
 
-Before you begin, ensure you have met the following requirements:
-- **AWS Account**
-   - You should have an account with the AWS cloud provider that you plan to use for deploying the infrastructure. a new user with the following policies attached:
-      - AmazonEC2FullAccess
-      - AmazonRoute53FullAccess
-      - AmazonS3FullAccess
-      - IAMFullAccess
-      - AmazonVPCFullAccess
-      - AmazonSQSFullAccess
-      - AmazonEventBridgeFullAccess
-      - Access Key ID and Secret Access Key for the user.
-   - The user should have Access Key ID and Secret Access Key
-   - S3 bucket for Terraform states
-      - Set necessary bucket permissions
-      - Enable bucket versioning
-      - Enable encryption
-      - Useful link:
-         - [Managing Terraform states Best Practices](https://spacelift.io/blog/terraform-s3-backend)
-   - GitHub OIDC identity provider
-      - [Github tutorial](https://docs.github.com/en/actions/security-for-github-actions/security-hardening-your-deployments/configuring-openid-connect-in-amazon-web-services)
-      - [AWS documentation on OIDC providers](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_create_for-idp_oidc.html#idp_oidc_Create_GitHub)
-- **AWS CLI 2** (https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html)
-- **Terraform 1.9+** (https://developer.hashicorp.com/terraform/install?product_intent=terraform)
+## Verification
+To verify the setup:
+1. Execute Terraform plans to ensure they run successfully.
 
-## Installation
+## Task 2: Basic Infrastructure Configuration
 
-To set up the Terreform project, follow these steps:
+Terraform code to configure the basic networking infrastructure required for a Kubernetes (K8s) cluster.
 
-1. **Clone the Repository**: Clone the project repository to your local machine using the following command:
+1. Created Terraform code to configure the following:
 
-   ```bash
-   git clone https://github.com/avorakh/rsschool-devops-course-tasks.git
-   ```
+- VPC (virtual private cloud) in eu-central-1 zone
+- 2 public subnets in different AZs
+- 2 private subnets in different AZs
+- Internet Gateway
+- Routing configuration:
+  - Instances in all subnets can reach each other
+  - Instances in public subnets can reach addresses outside VPC and vice-versa
+- Security Groups and Network ACLs for the VPC and subnets
+- NAT for private subnets, so instances in private subnet can connect with outside world. In the task, creating one NAT Gateway for practice is enough, but in production, we should create NAT for every subnet.
 
-2. **Navigate to the Project Directory**: Change your working directory to the project folder:
-
-   ```bash
-   cd rsschool-devops-course-tasks/task-01
-   ```
-
-3. **Initialize Terraform**: Initialize the Terraform working directory. This step downloads the necessary provider plugins:
-
-   ```bash
-   # backend.conf file
-   bucket  = "<PUT-S3-BUCKET-NAME-FOR-TERRAFORM-STATES>"
-   region  = "<PUT-AWS-REGION>"
-   key     = "state/terraform.tfstate"
-   encrypt = true
-   ```
-
-   ```bash
-   terraform init -backend-config=./path/to/backend.conf
-   ```
-
-## Usage
-
-To use the Terreform project, follow these steps:
-
-1. **Plan the Infrastructure**: Generate and review an execution plan for the infrastructure:
-
-   ```bash
-   terraform plan
-   ```
-
-   This command will show you what actions Terraform will take to change your infrastructure.
-
-2. **Apply the Infrastructure**: Apply the changes required to reach the desired state of the configuration:
-
-   ```bash
-   terraform apply
-   ```
-
-   Confirm the action when prompted. Terraform will provision the resources as defined in the configuration files.
-
-3. **Destroy the Infrastructure**: If you need to remove the infrastructure, use the following command:
-
-   ```bash
-   terraform destroy
-   ```
-
-   Confirm the action when prompted. This will delete all the resources managed by Terraform.
+2. Set up a GitHub Actions (GHA) pipeline for the Terraform code.
