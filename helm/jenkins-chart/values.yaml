@@ -1,0 +1,26 @@
+namespace: jenkins
+
+jenkins:
+  image: "jenkins/jenkins:lts"
+  serviceAccountName: jenkins
+  replicas: 1
+  storage:
+    accessMode: ReadWriteOnce
+    size: 8Gi
+    pv:
+      name: jenkins-pv
+      storageClassName: local-storage
+      hostPath: "/tmp/jenkins-volume"
+    pvc:
+      name: jenkins-pvc
+
+  resources:
+    limits:
+      memory: "2Gi"
+      cpu: "1000m"
+    requests:
+      memory: "500Mi"
+      cpu: "500m"
+
+  service:
+    nodePort: 30000
