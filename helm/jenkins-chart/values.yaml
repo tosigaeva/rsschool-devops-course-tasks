@@ -24,3 +24,50 @@ jenkins:
 
   service:
     nodePort: 30000
+  JCasC:
+    defaultConfig: true
+    securityRealm: |-
+      local:
+        allowsSignup: false
+        enableCaptcha: false
+        users:
+        - id: "${chart-admin-username}"
+          name: "Jenkins Admin"
+          password: "${chart-admin-password}"
+        - id: "rsschool"
+          name: "RS School"
+          password: "rs-school"
+    authorizationStrategy: |-
+      loggedInUsersCanDoAnything:
+        allowAnonymousRead: false
+    configScripts:
+      welcome-message: |-
+        jenkins:
+          systemMessage: Welcome to our RS School DevOps 2025 Q2 course CI\CD server.  This Jenkins is configured and managed 'as code'.
+        jobs:
+           - script: >
+               pipelineJob('test-job') {
+                 definition {
+                   cps {
+                     script('''
+                       pipeline {
+                               agent any
+                               stages {
+                                   stage('Stage 1') {
+                                       steps {
+                                           echo 'Hello World!'
+                                       }
+                                   }
+                                   stage('Stage 2') {
+                                       steps {
+                                           echo 'Is it me your looking for'
+                                       }
+                                   }
+                               }
+        
+                       }
+                     '''.stripIndent())
+                     sandbox()
+                   }
+                 }
+               }
