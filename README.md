@@ -74,3 +74,45 @@ Configuration and deployment a Kubernetes (K8s) cluster on AWS using k3s. Verify
 
 6. Additional Task: Document the cluster setup and deployment process in a README file.
 
+## Task 4: Jenkins Installation and Configuration
+
+1. **Verify the Cluster and Jenkins:**
+
+   ```bash
+   kubectl get nodes
+   ```
+
+   ```bash
+   kubectl get pods -n jenkins
+   ```
+
+2. **Access Jenkins:**
+
+   ```bash
+   kubectl get svc -n jenkins
+   ```
+   Open a web browser and navigate to http://<master_node_public_ip>:8080
+
+3. **Check Persistent Volume Configuration:**
+
+   ```bash
+   kubectl get pv
+   kubectl get pvc -n jenkins
+   ```
+
+   ```bash
+   helm install my-nginx oci://registry-1.docker.io/bitnamicharts/nginx
+   ```
+
+   ```bash
+   kubectl get pods
+   ```
+
+   ```bash
+   helm uninstall my-nginx
+   ```
+
+   ```bash
+   kubectl get pods
+   kubectl get svc
+   ```
