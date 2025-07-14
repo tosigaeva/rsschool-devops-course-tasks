@@ -24,6 +24,7 @@ jenkins:
 
   service:
     nodePort: 30000
+
   JCasC:
     defaultConfig: true
     securityRealm: |-

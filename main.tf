@@ -51,9 +51,47 @@ resource "aws_iam_role_policy_attachment" "github_actions_policies" {
     "IAMFullAccess",
     "AmazonVPCFullAccess",
     "AmazonSQSFullAccess",
-    "AmazonEventBridgeFullAccess"
+    "AmazonEventBridgeFullAccess",
+    "AmazonEC2ContainerRegistryFullAccess"
   ])
 
   role       = aws_iam_role.github_actions_role.name
   policy_arn = "arn:aws:iam::aws:policy/${each.value}"
+}
+
+# ECR Repository for Flask App
+resource "aws_ecr_repository" "flask_app" {
+  name                 = "flask-app"
+  image_tag_mutability = "MUTABLE"
+
+  image_scanning_configuration {
+    scan_on_push = true
+  }
+
+  tags = {
+    Name = "Flask App Repository"
+  }
+}
+
+# ECR Lifecycle Policy
+resource "aws_ecr_lifecycle_policy" "flask_app" {
+  repository = aws_ecr_repository.flask_app.name
+
+  policy = jsonencode({
+    rules = [
+      {
+        rulePriority = 1
+        description  = "Keep last 5 images"
+        selection = {
+          tagStatus     = "tagged"
+          tagPrefixList = ["v"]
+          countType     = "imageCountMoreThan"
+          countNumber   = 5
+        }
+        action = {
+          type = "expire"
+        }
+      }
+    ]
+  })
 }
