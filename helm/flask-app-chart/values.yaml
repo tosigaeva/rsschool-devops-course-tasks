@@ -6,7 +6,7 @@ image:
     pullPolicy: IfNotPresent
 
 service:
-    type: ClusterIP
+    type: LoadBalancer
     port: 8080
 
 
@@ -28,14 +28,14 @@ podSecurityContext: {}
 securityContext: {}
 
 ingress:
-    enabled: false
-    className: ""
+    enabled: true
+    className: "nginx"
     annotations: {}
     hosts:
-        - host: chart-example.local
+        - host: flask-app.local
           paths:
               - path: /
-                pathType: ImplementationSpecific
+                pathType: Prefix
     tls: []
 
 resources: {}

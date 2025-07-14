@@ -152,6 +152,20 @@ resource "aws_instance" "control_node" {
                 echo "Waiting for Jenkins pod to be ready..."
                 sleep 10
               done
+
+              # Install NGINX Ingress Controller
+              helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+              helm repo update
+              helm install ingress-nginx ingress-nginx/ingress-nginx \
+                --namespace ingress-nginx \
+                --create-namespace \
+                --set controller.service.type=LoadBalancer
+
+              # Wait for ingress controller to be ready
+              while [[ $(kubectl get pods -n ingress-nginx -l app.kubernetes.io/name=ingress-nginx -o jsonpath='{.items[*].status.containerStatuses[*].ready}' 2>/dev/null) != "true" ]]; do
+                echo "Waiting for NGINX Ingress Controller to be ready..."
+                sleep 10
+              done
               EOF
 }
 
