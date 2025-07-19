@@ -116,3 +116,42 @@ Configuration and deployment a Kubernetes (K8s) cluster on AWS using k3s. Verify
    kubectl get pods
    kubectl get svc
    ```
+
+## Task 5: Simple Application Deployment with Helm
+
+Deploy a simple Flask application using Helm charts on the Kubernetes cluster.
+
+### Overview
+This task demonstrates containerization and deployment of a Flask application using Helm package manager for Kubernetes.
+
+### Quick Start
+For detailed instructions, see [TASK5_README.md](TASK5_README.md)
+
+### Key Features
+- **Flask Application**: Simple web app with health check and info endpoints
+- **Docker Containerization**: Complete container setup with Dockerfile
+- **Helm Chart**: Standard Helm chart with deployment, service, and ingress templates
+- **Automated Deployment**: One-command deployment script
+
+### Quick Deployment
+```bash
+./task5-deploy.sh
+```
+
+### Application Endpoints
+- **Main Page**: `http://<service-ip>:8080`
+- **Health Check**: `http://<service-ip>:8080/health`
+- **Info Endpoint**: `http://<service-ip>:8080/info`
+
+### Verification
+```bash
+# Check deployment status
+kubectl get pods -n default
+kubectl get svc -n default
+
+# Test application
+curl http://<service-ip>:8080
+curl http://<service-ip>:8080/health
+```
+
+For complete documentation, troubleshooting, and evaluation criteria, see [TASK5_README.md](TASK5_README.md).

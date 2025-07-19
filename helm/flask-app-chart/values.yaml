@@ -1,0 +1,63 @@
+replicaCount: 1
+
+image:
+    repository: my-flask-app
+    tag: latest
+    pullPolicy: IfNotPresent
+
+service:
+    type: LoadBalancer
+    port: 8080
+
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+    create: true
+    automount: true
+    annotations: {}
+    name: ""
+
+podAnnotations: {}
+podLabels: {}
+
+podSecurityContext: {}
+
+securityContext: {}
+
+ingress:
+    enabled: true
+    className: "nginx"
+    annotations: {}
+    hosts:
+        - host: flask-app.local
+          paths:
+              - path: /
+                pathType: Prefix
+    tls: []
+
+resources: {}
+livenessProbe:
+    httpGet:
+        path: /
+        port: http
+readinessProbe:
+    httpGet:
+        path: /
+        port: http
+
+autoscaling:
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 100
+    targetCPUUtilizationPercentage: 80
+volumes: []
+volumeMounts: []
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
