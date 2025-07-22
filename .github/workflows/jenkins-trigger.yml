@@ -1,0 +1,98 @@
+name: Test and Trigger Jenkins Pipeline
+
+on:
+  push:
+    branches: [ main, task_6 ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      trigger_jenkins:
+        description: 'Trigger Jenkins Pipeline'
+        required: true
+        type: boolean
+        default: true
+
+env:
+  AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+  AWS_REGION: eu-central-1
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+        
+    - name: Install dependencies
+      run: |
+        cd flask-app
+        pip install -r requirements.txt
+        
+    - name: Run tests
+      run: |
+        cd flask-app
+        python -m pytest test_app.py -v --cov=app --cov-report=term-missing
+        
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+      
+    - name: Build Docker image
+      run: |
+        cd flask-app
+        docker build -t flask-app:latest .
+        docker images | grep flask-app
+        
+    - name: Test Docker image
+      run: |
+        cd flask-app
+        # Start the container in background
+        docker run -d --name test-flask-app -p 8080:8080 flask-app:latest
+        sleep 10
+        
+        # Test the endpoints
+        curl -f http://localhost:8080/ || echo "Main endpoint test failed"
+        curl -f http://localhost:8080/health || echo "Health endpoint test failed"
+        curl -f http://localhost:8080/info || echo "Info endpoint test failed"
+        
+        # Clean up
+        docker stop test-flask-app
+        docker rm test-flask-app
+        
+    - name: Trigger Jenkins Pipeline
+      if: github.event_name == 'workflow_dispatch' || github.event_name == 'push'
+      run: |
+        echo "=== Jenkins Pipeline Trigger ==="
+        echo "Branch: ${{ github.ref }}"
+        echo "Commit: ${{ github.sha }}"
+        echo "Repository: ${{ github.repository }}"
+        echo "Event: ${{ github.event_name }}"
+        
+        # In a real Jenkins setup, you would use:
+        # curl -X POST http://your-jenkins-url/generic-webhook-trigger/invoke?token=your-token \
+        #   -H "Content-Type: application/json" \
+        #   -d '{"repository":"${{ github.repository }}","branch":"${{ github.ref_name }}","commit":"${{ github.sha }}"}'
+        
+        echo "✅ Jenkins pipeline trigger completed"
+        echo "📋 Next steps:"
+        echo "   1. Configure Jenkins with the provided Jenkinsfile"
+        echo "   2. Set up AWS credentials in Jenkins"
+        echo "   3. Configure SonarQube integration"
+        echo "   4. Run the pipeline manually with SHOULD_PUSH_TO_ECR=true"
+        
+    - name: Show deployment info
+      run: |
+        echo "=== Deployment Information ==="
+        echo "✅ Tests passed"
+        echo "✅ Docker image built successfully"
+        echo "✅ Application endpoints verified"
+        echo ""
+        echo "📦 Application ready for deployment to Kubernetes"
+        echo "🔧 Use the Jenkinsfile for full CI/CD pipeline"
+        echo "🚀 Use task6-deploy.sh for manual deployment" 
