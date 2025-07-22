@@ -1,7 +1,8 @@
 resource "aws_instance" "bastion_host" {
-  ami           = data.aws_ami.amazon_linux.id
-  instance_type = var.instance_type
-  subnet_id     = aws_subnet.public_subnets[0].id
+  ami                         = data.aws_ami.amazon_linux.id
+  instance_type               = var.instance_type
+  subnet_id                   = aws_subnet.public_subnets[0].id
+  associate_public_ip_address = true
   vpc_security_group_ids = [
     aws_security_group.public.id,
     aws_security_group.private.id,
@@ -14,9 +15,10 @@ resource "aws_instance" "bastion_host" {
 }
 
 resource "aws_instance" "control_node" {
-  ami           = data.aws_ami.amazon_linux.id
-  instance_type = var.instance_type
-  subnet_id     = aws_subnet.public_subnets[0].id
+  ami                         = data.aws_ami.amazon_linux.id
+  instance_type               = var.instance_type
+  subnet_id                   = aws_subnet.public_subnets[0].id
+  associate_public_ip_address = true
   vpc_security_group_ids = [
     aws_security_group.public.id,
     aws_security_group.private.id,
@@ -29,7 +31,8 @@ resource "aws_instance" "control_node" {
   user_data = <<-EOF
               #!/bin/bash
               sudo su
-              apt update && curl -sfL https://get.k3s.io | sh -
+              apt update && apt install -y curl
+              curl -sfL https://get.k3s.io | sh -
 
               # Wait for k3s to be ready
               while ! kubectl get nodes; do
