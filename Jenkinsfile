@@ -9,8 +9,8 @@ pipeline {
             some-label: some-label-value
         spec:
           containers:
-          - name: node
-            image: timbru31/node-alpine-git
+          - name: python
+            image: python:3.9-slim
             command:
             - cat
             tty: true
@@ -27,6 +27,16 @@ pipeline {
             command:
             - cat
             tty: true
+          - name: helm
+            image: alpine/helm:latest
+            command:
+            - cat
+            tty: true
+          - name: kubectl
+            image: bitnami/kubectl:latest
+            command:
+            - cat
+            tty: true
           volumes:
           - name: docker-socket
             hostPath:
@@ -35,9 +45,11 @@ pipeline {
       retries 2
     }
   }
-    parameters {
+  
+  parameters {
     booleanParam(name: 'SHOULD_PUSH_TO_ECR', defaultValue: false, description: 'Set to true in build with params to push Docker image to ECR')
   }
+  
   triggers {
     GenericTrigger(
       causeString: 'Triggered by GitHub Push',
@@ -47,67 +59,74 @@ pipeline {
       silentResponse: false
     )
   }
+  
   environment {
-    AWS_ACCOUNT_ID = '287703574697'
-    AWS_REGION = 'us-east-1'
+    AWS_ACCOUNT_ID = '108782051436'
+    AWS_REGION = 'eu-central-1'
     AWS_CREDENTIALS = 'aws-credentials'
-    REPO_NAME = 'rest-api-app'
+    REPO_NAME = 'flask-app'
     IMAGE_TAG = 'latest'
-    SONAR_PROJECT_KEY = "simple-app"
+    SONAR_PROJECT_KEY = "flask-app"
     SONAR_LOGIN = "sqp_3fca749f30de7b83ffa8301cea89d1543bad8ec9"
     SONAR_HOST_URL = "http://57.121.16.245:9000"
+    KUBE_NAMESPACE = "default"
   }
+  
   stages {
-    stage('Prepare') {
+    stage('Checkout') {
       steps {
-        container('node') {
+        container('python') {
           script {
-            echo "Cloning repository..."
+            echo "Checking out repository..."
+            checkout scm
             sh '''
-              git clone https://github.com/woodo01/nodejs2024Q3-service app
-              cd app
-              echo "Repo files:"
+              echo "Repository files:"
               ls -la
+              echo "Flask app directory:"
+              ls -la flask-app/
             '''
           }
         }
       }
     }
+    
     stage('Install Dependencies') {
       steps {
-        container('node') {
+        container('python') {
           script {
-            echo "Installing dependencies..."
+            echo "Installing Python dependencies..."
             sh '''
-              cd app
-              npm install
+              cd flask-app
+              pip install --no-cache-dir -r requirements.txt
+              pip install pytest pytest-cov
             '''
           }
         }
       }
     }
+    
     stage('Run Tests') {
       steps {
-        container('node') {
+        container('python') {
           script {
-            echo "Running tests..."
+            echo "Running unit tests..."
             sh '''
-              cd app
-              npm test
+              cd flask-app
+              python -m pytest test_app.py -v --cov=app --cov-report=term-missing --cov-report=xml
             '''
           }
         }
       }
     }
+    
     stage('SonarQube Analysis') {
       steps {
         container('sonarscanner') {
           script {
-          echo "Running SonarQube analysis..."
+            echo "Running SonarQube analysis..."
             sh '''
+              cd flask-app
               sonar-scanner \
-                -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
-                -Dsonar.sources=. \
                 -Dsonar.host.url=${SONAR_HOST_URL} \
                 -Dsonar.login=${SONAR_LOGIN}
             '''
@@ -115,6 +134,7 @@ pipeline {
         }
       }
     }
+    
     stage('Install AWS CLI') {
       steps {
         container('docker') {
@@ -129,21 +149,23 @@ pipeline {
         }
       }
     }
+    
     stage('Build Docker Image') {
       steps {
         container('docker') {
           script {
             echo "Building Docker image..."
             sh '''
-              cd app
-              pwd
-              docker build -t rest-api-app:latest -f Dockerfile .
+              cd flask-app
+              docker build -t ${REPO_NAME}:${IMAGE_TAG} .
+              docker images | grep ${REPO_NAME}
             '''
           }
         }
       }
     }
-    stage('Push Docker image to ECR') {
+    
+    stage('Push Docker Image to ECR') {
       when { expression { params.SHOULD_PUSH_TO_ECR == true } }
       steps {
         container('docker') {
@@ -160,47 +182,91 @@ pipeline {
         }
       }
     }
+    
     stage('Create ECR Secret') {
-        steps {
-            container('docker') {
-               script {
-                echo "Creating ECR secret..."
-                withAWS(credentials: "${AWS_CREDENTIALS}", region: "${AWS_REGION}") {
-                  sh '''
-                    aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${REPO_NAME}
-                    kubectl create secret generic ecr-secret --namespace=jenkins --from-file=.dockerconfigjson=\$HOME/.docker/config.json --dry-run=client -o json | kubectl apply -f -
-                  '''
-                }
-              }
+      when { expression { params.SHOULD_PUSH_TO_ECR == true } }
+      steps {
+        container('docker') {
+          script {
+            echo "Creating ECR secret..."
+            withAWS(credentials: "${AWS_CREDENTIALS}", region: "${AWS_REGION}") {
+              sh '''
+                aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${REPO_NAME}
+                kubectl create secret generic ecr-secret --namespace=${KUBE_NAMESPACE} --from-file=.dockerconfigjson=$HOME/.docker/config.json --dry-run=client -o json | kubectl apply -f -
+              '''
             }
+          }
         }
+      }
     }
+    
     stage('Deploy to Kubernetes with Helm') {
-        when { expression { params.SHOULD_PUSH_TO_ECR == true } }
-        steps {
-            container('helm') {
-              script {
-                echo "Deploying to Kubernetes with Helm..."
-                withAWS(credentials: "${AWS_CREDENTIALS}", region: "${AWS_REGION}") {
-                  sh '''
-                    helm upgrade --install ${REPO_NAME} ./helm/${REPO_NAME} \\
-                    --set image.repository=${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${REPO_NAME} \\
-                    --set image.tag=${IMAGE_TAG} \\
-                    -f ./helm/${REPO_NAME}/values.yaml \\
-                    --namespace default                  '''
-                }
-              }
+      when { expression { params.SHOULD_PUSH_TO_ECR == true } }
+      steps {
+        container('helm') {
+          script {
+            echo "Deploying to Kubernetes with Helm..."
+            withAWS(credentials: "${AWS_CREDENTIALS}", region: "${AWS_REGION}") {
+              sh '''
+                helm upgrade --install ${REPO_NAME} ./helm/flask-app-chart \
+                --set image.repository=${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${REPO_NAME} \
+                --set image.tag=${IMAGE_TAG} \
+                --set image.pullPolicy=Always \
+                --namespace ${KUBE_NAMESPACE}
+              '''
             }
+          }
         }
+      }
+    }
+    
+    stage('Application Verification') {
+      when { expression { params.SHOULD_PUSH_TO_ECR == true } }
+      steps {
+        container('kubectl') {
+          script {
+            echo "Verifying application deployment..."
+            sh '''
+              # Wait for deployment to be ready
+              kubectl wait --for=condition=available --timeout=300s deployment/${REPO_NAME} -n ${KUBE_NAMESPACE}
+              
+              # Get the service URL
+              SERVICE_URL=$(kubectl get service ${REPO_NAME} -n ${KUBE_NAMESPACE} -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+              
+              if [ -n "$SERVICE_URL" ]; then
+                echo "Service URL: $SERVICE_URL"
+                
+                # Wait for service to be accessible
+                sleep 30
+                
+                # Test the main endpoint
+                echo "Testing main endpoint..."
+                curl -f http://$SERVICE_URL:8080/ || echo "Main endpoint test failed"
+                
+                # Test the health endpoint
+                echo "Testing health endpoint..."
+                curl -f http://$SERVICE_URL:8080/health || echo "Health endpoint test failed"
+                
+                # Test the info endpoint
+                echo "Testing info endpoint..."
+                curl -f http://$SERVICE_URL:8080/info || echo "Info endpoint test failed"
+              else
+                echo "Service URL not available yet"
+              fi
+            '''
+          }
+        }
+      }
     }
   }
+  
   post {
     success {
       script {
         echo "Pipeline completed successfully!"
         emailext(
-          subject: 'Jenkins Pipeline Success',
-            body: "'${env.JOB_NAME}' (#${env.BUILD_NUMBER}) has great success.\n\nReport: ${env.BUILD_URL}",
+          subject: 'Jenkins Pipeline Success - Flask App',
+          body: "'${env.JOB_NAME}' (#${env.BUILD_NUMBER}) has completed successfully.\n\nReport: ${env.BUILD_URL}\n\nApplication deployed to Kubernetes cluster.",
           to: 'test@example.com'
         )
       }
@@ -209,10 +275,16 @@ pipeline {
       script {
         echo "Pipeline failed!"
         emailext(
-          subject: 'Jenkins Pipeline Failure',
-            body: "'${env.JOB_NAME}' (#${env.BUILD_NUMBER}) failed.\n\nReport: ${env.BUILD_URL}",
-          to: 'test@exampe.com'
+          subject: 'Jenkins Pipeline Failure - Flask App',
+          body: "'${env.JOB_NAME}' (#${env.BUILD_NUMBER}) failed.\n\nReport: ${env.BUILD_URL}\n\nPlease check the logs for more details.",
+          to: 'test@example.com'
         )
+      }
+    }
+    always {
+      script {
+        echo "Cleaning up workspace..."
+        cleanWs()
       }
     }
   }
