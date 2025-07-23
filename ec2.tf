@@ -149,7 +149,7 @@ resource "aws_instance" "control_node" {
                 --set persistence.enabled=true \
                 --set persistence.size=8Gi \
                 --set persistence.existingClaim=jenkins-pvc \
-                --set 'controller.installPlugins={cloudbees-credentials,git,workflow-aggregator,jacoco,configuration-as-code}'
+                --set 'controller.installPlugins={kubernetes,workflow-aggregator,git,configuration-as-code,cloudbees-credentials,jacoco,email-ext,sonar,aws-credentials,docker-workflow,build-timeout,timestamper}'
 
               while [[ $(kubectl get pods -n jenkins -l app.kubernetes.io/component=jenkins-controller -o jsonpath='{.items[*].status.containerStatuses[*].ready}' 2>/dev/null) != "true" ]]; do
                 echo "Waiting for Jenkins pod to be ready..."
