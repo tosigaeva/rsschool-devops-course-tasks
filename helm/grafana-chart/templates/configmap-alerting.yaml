@@ -1,0 +1,76 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-alerting
+  namespace: monitoring
+  labels:
+    app: grafana
+data:
+  alerting.yaml: |
+    apiVersion: 1
+    groups:
+      - name: kubernetes-alerts
+        folder: Kubernetes
+        interval: 1m
+        rules:
+          - name: High CPU Usage
+            condition: avg(rate(container_cpu_usage_seconds_total{container!=""}[5m])) by (pod) > 0.8
+            for: 5m
+            labels:
+              severity: warning
+              team: devops
+            annotations:
+              summary: "High CPU usage detected"
+              description: "Pod {{ $labels.pod }} has high CPU usage ({{ $value }})"
+              runbook_url: "https://wiki.example.com/runbook/high-cpu"
+          
+          - name: High Memory Usage
+            condition: avg(container_memory_usage_bytes{container!=""}) by (pod) / avg(container_spec_memory_limit_bytes{container!=""}) by (pod) > 0.8
+            for: 5m
+            labels:
+              severity: warning
+              team: devops
+            annotations:
+              summary: "High memory usage detected"
+              description: "Pod {{ $labels.pod }} has high memory usage ({{ $value | humanizePercentage }})"
+              runbook_url: "https://wiki.example.com/runbook/high-memory"
+          
+          - name: Node High CPU Usage
+            condition: 100 - (avg by (instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+            for: 5m
+            labels:
+              severity: warning
+              team: devops
+            annotations:
+              summary: "Node high CPU usage"
+              description: "Node {{ $labels.instance }} has high CPU usage ({{ $value | humanizePercentage }})"
+          
+          - name: Node High Memory Usage
+            condition: (node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes) / node_memory_MemTotal_bytes * 100 > 80
+            for: 5m
+            labels:
+              severity: warning
+              team: devops
+            annotations:
+              summary: "Node high memory usage"
+              description: "Node {{ $labels.instance }} has high memory usage ({{ $value | humanizePercentage }})"
+          
+          - name: Pod Restarting
+            condition: increase(kube_pod_container_status_restarts_total[15m]) > 0
+            for: 1m
+            labels:
+              severity: warning
+              team: devops
+            annotations:
+              summary: "Pod is restarting"
+              description: "Pod {{ $labels.pod }} in namespace {{ $labels.namespace }} is restarting"
+          
+          - name: Node Down
+            condition: up{job="node-exporter"} == 0
+            for: 1m
+            labels:
+              severity: critical
+              team: devops
+            annotations:
+              summary: "Node is down"
+              description: "Node {{ $labels.instance }} is down" 

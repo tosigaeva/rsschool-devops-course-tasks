@@ -1,0 +1,82 @@
+grafana:
+  adminPassword: "admin123"
+  
+  persistence:
+    enabled: true
+    storageClassName: gp2
+    size: 5Gi
+
+  # Configure SMTP for alerts
+  smtp:
+    enabled: true
+    host: "smtp.gmail.com:587"
+    user: "your-email@gmail.com"
+    password: "your-app-password"
+    fromAddress: "your-email@gmail.com"
+    fromName: "Grafana Alerts"
+    startTLSPolicy: "MandatoryStartTLS"
+    skipVerify: false
+
+  # Configure dashboards
+  dashboards:
+    default:
+      kubernetes-cluster:
+        gnetId: 7249
+        revision: 1
+        datasource: Prometheus
+      kubernetes-pods:
+        gnetId: 6417
+        revision: 1
+        datasource: Prometheus
+      node-exporter:
+        gnetId: 1860
+        revision: 22
+        datasource: Prometheus
+
+  # Configure datasources
+  datasources:
+    datasources.yaml:
+      apiVersion: 1
+      datasources:
+        - name: Prometheus
+          type: prometheus
+          url: http://prometheus-kube-prometheus-prometheus:9090
+          access: proxy
+          isDefault: true
+
+  # Configure alerting
+  alerting:
+    rules:
+      cpu-high:
+        name: High CPU Usage
+        condition: avg(rate(container_cpu_usage_seconds_total{container!=""}[5m])) by (pod) > 0.8
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU usage detected"
+          description: "Pod {{ $labels.pod }} has high CPU usage"
+      
+      memory-high:
+        name: High Memory Usage
+        condition: avg(container_memory_usage_bytes{container!=""}) by (pod) / avg(container_spec_memory_limit_bytes{container!=""}) by (pod) > 0.8
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage detected"
+          description: "Pod {{ $labels.pod }} has high memory usage"
+
+  # Configure notification channels
+  notifiers:
+    notifiers.yaml:
+      notifiers:
+        - name: email-notifications
+          type: email
+          uid: email1
+          org_id: 1
+          is_default: true
+          settings:
+            addresses: "your-email@gmail.com"
+          secure_settings:
+            password: "your-app-password" 
