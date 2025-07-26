@@ -1,7 +1,8 @@
 resource "aws_instance" "bastion_host" {
-  ami           = data.aws_ami.amazon_linux.id
-  instance_type = var.instance_type
-  subnet_id     = aws_subnet.public_subnets[0].id
+  ami                         = data.aws_ami.amazon_linux.id
+  instance_type               = var.instance_type
+  subnet_id                   = aws_subnet.public_subnets[0].id
+  associate_public_ip_address = true
   vpc_security_group_ids = [
     aws_security_group.public.id,
     aws_security_group.private.id,
@@ -14,9 +15,10 @@ resource "aws_instance" "bastion_host" {
 }
 
 resource "aws_instance" "control_node" {
-  ami           = data.aws_ami.amazon_linux.id
-  instance_type = var.instance_type
-  subnet_id     = aws_subnet.public_subnets[0].id
+  ami                         = data.aws_ami.amazon_linux.id
+  instance_type               = var.instance_type
+  subnet_id                   = aws_subnet.public_subnets[0].id
+  associate_public_ip_address = true
   vpc_security_group_ids = [
     aws_security_group.public.id,
     aws_security_group.private.id,
@@ -29,7 +31,8 @@ resource "aws_instance" "control_node" {
   user_data = <<-EOF
               #!/bin/bash
               sudo su
-              apt update && curl -sfL https://get.k3s.io | sh -
+              apt update && apt install -y curl
+              curl -sfL https://get.k3s.io | sh -
 
               # Wait for k3s to be ready
               while ! kubectl get nodes; do
@@ -146,7 +149,7 @@ resource "aws_instance" "control_node" {
                 --set persistence.enabled=true \
                 --set persistence.size=8Gi \
                 --set persistence.existingClaim=jenkins-pvc \
-                --set 'controller.installPlugins={cloudbees-credentials,git,workflow-aggregator,jacoco,configuration-as-code}'
+                --set 'controller.installPlugins={kubernetes,workflow-aggregator,git,configuration-as-code,cloudbees-credentials,jacoco,email-ext,sonar,aws-credentials,docker-workflow,build-timeout,timestamper}'
 
               while [[ $(kubectl get pods -n jenkins -l app.kubernetes.io/component=jenkins-controller -o jsonpath='{.items[*].status.containerStatuses[*].ready}' 2>/dev/null) != "true" ]]; do
                 echo "Waiting for Jenkins pod to be ready..."

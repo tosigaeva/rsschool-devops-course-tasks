@@ -95,3 +95,22 @@ resource "aws_ecr_lifecycle_policy" "flask_app" {
     ]
   })
 }
+
+# Output the private key for SSH access
+output "private_key_pem" {
+  value     = tls_private_key.my_key.private_key_pem
+  sensitive = true
+}
+
+# Output instance information
+output "bastion_host_public_ip" {
+  value = aws_instance.bastion_host.public_ip
+}
+
+output "control_node_public_ip" {
+  value = aws_instance.control_node.public_ip
+}
+
+output "agent_node_private_ip" {
+  value = aws_instance.agent_node.private_ip
+}

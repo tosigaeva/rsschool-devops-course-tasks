@@ -27,6 +27,14 @@ resource "aws_security_group" "public" {
   }
 
   ingress {
+    description = "Allow inbound Jenkins traffic"
+    from_port   = 8080
+    to_port     = 8080
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
     description = "Allow inbound ICMP traffic (ping)"
     from_port   = -1
     to_port     = -1

@@ -78,7 +78,7 @@ helm install jenkins jenkins/jenkins --namespace jenkins \
   --set persistence.enabled=true \
   --set persistence.size=8Gi \
   --set persistence.existingClaim=jenkins-pvc \
-  --set controller.installPlugins="cloudbees-credentials,git,workflow-aggregator,jacoco,jacoco,configuration-as-code"
+  --set controller.installPlugins="kubernetes,workflow-aggregator,git,configuration-as-code,cloudbees-credentials,jacoco,email-ext,sonar,aws-credentials,docker-workflow,build-timeout,timestamper"
 
 sudo systemctl status k3s
 kubectl get all -n kube-system
